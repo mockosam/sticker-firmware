@@ -33,10 +33,7 @@ enum app_config_lrw_activation {
 	APP_CONFIG_LRW_ACTIVATION_ABP = 1,
 };
 
-#define APP_CONFIG_VERSION 1
-
 struct app_config {
-	uint32_t config_version;
 	uint8_t secret_key[16];
 	uint32_t serial_number;
 	uint32_t nonce_counter;
@@ -44,6 +41,8 @@ struct app_config {
 	int interval_sample;
 	int interval_report;
 	enum app_config_lrw_region lrw_region;
+	int lrw_sub_band;
+	enum app_config_lrw_region last_applied_region;
 	enum app_config_lrw_network lrw_network;
 	bool lrw_adr;
 	enum app_config_lrw_activation lrw_activation;
