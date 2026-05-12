@@ -676,6 +676,12 @@ int app_lrw_init(void)
 		return ret;
 	}
 
+	ret = lorawan_start();
+	if (ret) {
+		LOG_ERR_CALL_FAILED_INT("lorawan_start", ret);
+		return ret;
+	}
+
 	if (g_app_config.lrw_region == APP_CONFIG_LRW_REGION_US915 ||
 	    g_app_config.lrw_region == APP_CONFIG_LRW_REGION_AU915) {
 		ret = apply_subband(g_app_config.lrw_sub_band);
@@ -683,12 +689,6 @@ int app_lrw_init(void)
 			LOG_ERR_CALL_FAILED_INT("apply_subband", ret);
 			return ret;
 		}
-	}
-
-	ret = lorawan_start();
-	if (ret) {
-		LOG_ERR_CALL_FAILED_INT("lorawan_start", ret);
-		return ret;
 	}
 
 	static struct lorawan_downlink_cb downlink_cb = {
