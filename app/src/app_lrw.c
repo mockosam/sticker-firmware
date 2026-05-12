@@ -598,7 +598,7 @@ static int apply_subband(uint8_t sub_band)
 	uint8_t hi_ch = 64 + (sub_band - 1);
 	mask[hi_ch / 16] |= BIT(hi_ch % 16);
 
-	int ret = lorawan_set_channels_mask(mask, sizeof(mask));
+	int ret = lorawan_set_channels_mask(mask, ARRAY_SIZE(mask));
 	if (ret) {
 		LOG_ERR_CALL_FAILED_INT("lorawan_set_channels_mask", ret);
 		return ret;
