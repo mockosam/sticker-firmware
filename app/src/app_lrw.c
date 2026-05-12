@@ -20,6 +20,7 @@
 #include <zephyr/logging/log.h>
 #include <zephyr/lorawan/lorawan.h>
 #include <zephyr/random/random.h>
+#include <zephyr/settings/settings.h>
 #include <zephyr/sys/atomic.h>
 #include <zephyr/sys/byteorder.h>
 
@@ -49,6 +50,20 @@ LOG_MODULE_REGISTER(app_lrw, LOG_LEVEL_DBG);
 #define REJOIN_BACKOFF_BASE_SEC  60   /* Base backoff time in seconds */
 #define REJOIN_BACKOFF_MAX_SEC   3600 /* Maximum backoff time (1 hour) */
 #define REJOIN_BACKOFF_MULTIPLIER 2   /* Exponential multiplier per attempt */
+
+/* Keys written by Zephyr's LoRaWAN NVM subsystem. Mirror of the set declared
+ * in zephyr/subsys/lorawan/nvm/lorawan_nvm_settings.c:35-43 — must be cleared
+ * together on region change, because a stale MacGroup2 contains the old
+ * LoRaMacRegion and overrides lorawan_set_region() at the next lorawan_start(). */
+static const char *const m_lorawan_nvm_keys[] = {
+	"lorawan/nvm/Crypto",
+	"lorawan/nvm/MacGroup1",
+	"lorawan/nvm/MacGroup2",
+	"lorawan/nvm/SecureElement",
+	"lorawan/nvm/RegionGroup1",
+	"lorawan/nvm/RegionGroup2",
+	"lorawan/nvm/ClassB",
+};
 
 static K_THREAD_STACK_DEFINE(m_work_stack, 2048);
 static struct k_work_q m_work_q;
@@ -565,6 +580,34 @@ static void send_timer_handler(struct k_timer *timer)
 	k_work_submit_to_queue(&m_work_q, &m_send_work);
 }
 
+static int apply_subband(uint8_t sub_band)
+{
+	if (sub_band == 0) {
+		return 0;
+	}
+	if (sub_band > 8) {
+		LOG_ERR("Invalid sub-band: %u", sub_band);
+		return -EINVAL;
+	}
+
+	uint16_t mask[6] = {0};
+	uint8_t base = (sub_band - 1) * 8;
+	for (uint8_t ch = base; ch < base + 8; ch++) {
+		mask[ch / 16] |= BIT(ch % 16);
+	}
+	uint8_t hi_ch = 64 + (sub_band - 1);
+	mask[hi_ch / 16] |= BIT(hi_ch % 16);
+
+	int ret = lorawan_set_channels_mask(mask, sizeof(mask));
+	if (ret) {
+		LOG_ERR_CALL_FAILED_INT("lorawan_set_channels_mask", ret);
+		return ret;
+	}
+
+	LOG_INF("Applied sub-band %u", sub_band);
+	return 0;
+}
+
 int app_lrw_init(void)
 {
 	int ret;
@@ -573,6 +616,41 @@ int app_lrw_init(void)
 	if (!device_is_ready(dev)) {
 		LOG_ERR("Device not ready");
 		return -ENODEV;
+	}
+
+	if (g_app_config.lrw_region != g_app_config.last_applied_region) {
+		LOG_INF("Region changed %d -> %d, clearing LoRaWAN NVM",
+			g_app_config.last_applied_region, g_app_config.lrw_region);
+
+		for (size_t i = 0; i < ARRAY_SIZE(m_lorawan_nvm_keys); i++) {
+			ret = settings_delete(m_lorawan_nvm_keys[i]);
+			if (ret && ret != -ENOENT) {
+				LOG_ERR("Call `settings_delete` failed (%s): %d",
+					m_lorawan_nvm_keys[i], ret);
+				/* Continue — a single leftover key is better than
+				 * bricking the device. Worst case the join fails
+				 * and the user runs `settings reset`. */
+			}
+		}
+
+		g_app_config.last_applied_region = g_app_config.lrw_region;
+
+		ret = settings_save_one("config/last-applied-region",
+					&g_app_config.last_applied_region,
+					sizeof(g_app_config.last_applied_region));
+		if (ret) {
+			LOG_ERR_CALL_FAILED_INT("settings_save_one", ret);
+		}
+
+		/* Reload the config subtree so m_app_config (private to
+		 * app_config.c) picks up the new last-applied-region we just
+		 * wrote. Without this, a later settings_save() in the same
+		 * boot would export the stale value from m_app_config and undo
+		 * our bookkeeping. */
+		ret = settings_load_subtree("config");
+		if (ret) {
+			LOG_ERR_CALL_FAILED_INT("settings_load_subtree", ret);
+		}
 	}
 
 	enum lorawan_region region;
@@ -596,6 +674,15 @@ int app_lrw_init(void)
 	if (ret) {
 		LOG_ERR_CALL_FAILED_INT("lorawan_set_region", ret);
 		return ret;
+	}
+
+	if (g_app_config.lrw_region == APP_CONFIG_LRW_REGION_US915 ||
+	    g_app_config.lrw_region == APP_CONFIG_LRW_REGION_AU915) {
+		ret = apply_subband(g_app_config.lrw_sub_band);
+		if (ret) {
+			LOG_ERR_CALL_FAILED_INT("apply_subband", ret);
+			return ret;
+		}
 	}
 
 	ret = lorawan_start();
