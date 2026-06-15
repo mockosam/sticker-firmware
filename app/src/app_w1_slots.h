@@ -27,6 +27,7 @@ enum app_w1_slot_type {
 	APP_W1_SLOT_EMPTY = 0,
 	APP_W1_SLOT_DALLAS = 1,        /* DS18B20, family 0x28 — temperature */
 	APP_W1_SLOT_MACHINE_PROBE = 2, /* DS28E17 bridge, family 0x19 — temp + humidity + tilt */
+	APP_W1_SLOT_FLOOD_PROBE = 3,   /* DS28E17 bridge, family 0x19 — flood sensor (AIN2 voltage, mV) */
 };
 
 /* One slot's latest readings. Quantities a slot's type doesn't provide are
@@ -44,6 +45,7 @@ struct app_w1_slot_reading {
 	float accel_x;        /* m/s^2, NaN unless machine-probe */
 	float accel_y;        /* m/s^2, NaN unless machine-probe */
 	float accel_z;        /* m/s^2, NaN unless machine-probe */
+	float flood;          /* AIN2 voltage in mV, NaN unless flood-probe */
 	bool is_tilt_alert;
 	bool present;
 };

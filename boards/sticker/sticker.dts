@@ -185,6 +185,24 @@ stm32_lp_tick_source: &lptim1 {
 			family-code = <0x19>;
 			zephyr,deferred-init;
 		};
+
+		/* Flood probes: same DS28E17 bridge (family 0x19) as the machine
+		 * probe, but carrying an ADS122C04 ADC wired to a resistive flood
+		 * sensor. Detection is by I2C address behind the bridge (see
+		 * app_flood_probe.c), so these share the family code; they are
+		 * separate driver instances so a flood probe and a machine probe
+		 * can be bound at the same time. */
+		flood_probe_0: flood_probe_0 {
+			compatible = "maxim,ds28e17";
+			family-code = <0x19>;
+			zephyr,deferred-init;
+		};
+
+		flood_probe_1: flood_probe_1 {
+			compatible = "maxim,ds28e17";
+			family-code = <0x19>;
+			zephyr,deferred-init;
+		};
 	};
 };
 

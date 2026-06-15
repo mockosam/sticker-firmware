@@ -70,6 +70,19 @@ config APP_HISTORY_BYTES
 	  Size of the in-RAM history ring used when CONFIG_APP_HISTORY_FLASH=n.
 	  Record size is variable (5-33 B) depending on the enabled sensor set.
 
+config APP_FLOOD_PROBE
+	bool "Flood probe (ADS122C04 resistive flood sensor over DS28E17)"
+	depends on DS28E17
+	default y
+	help
+	  Support the 1-Wire flood probe: the HARDWARIO "weight probe" board
+	  (ADS122C04 24-bit ADC behind a DS28E17 1-Wire-to-I2C bridge, family
+	  0x19) repurposed for a resistive flood/water sensor. The ADS122C04
+	  drives 1500 uA into AIN2 and measures the AIN2 voltage; a discovered
+	  probe occupies a 1-Wire slot and reports the voltage (mV) in telemetry,
+	  with a configurable flood alarm threshold. Disable to drop the driver
+	  from the image (e.g. to reclaim flash on the release budget).
+
 endmenu
 
 menu "Zephyr Kernel"

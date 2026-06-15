@@ -9,6 +9,7 @@
 #include "app_ds18b20.h"
 #include "app_log.h"
 #include "app_machine_probe.h"
+#include "app_flood_probe.h"
 
 /* Nanopb includes — this framework layer owns the slot→telemetry encode so the
  * HW transport drivers (app_ds18b20, app_machine_probe) never see the wire
@@ -113,6 +114,21 @@ static int machine_probe_read(int index, uint64_t *serial, struct app_w1_slot_re
 	return ret;
 }
 
+#if defined(CONFIG_APP_FLOOD_PROBE)
+static int flood_probe_read(int index, uint64_t *serial, struct app_w1_slot_reading *out)
+{
+	int32_t raw;
+	int ret = app_flood_probe_read(index, serial, &raw);
+
+	if (ret == 0) {
+		/* AIN2 voltage in mV: 2048 mV / 2^23 counts (internal ref, gain 1).
+		 * Nominal scale — confirmed against a known voltage during bring-up. */
+		out->flood = (float)raw / 4096.0f;
+	}
+	return ret;
+}
+#endif
+
 /* Dallas (DS18B20): temperature only. */
 static void dallas_encode(const struct app_w1_slot_reading *r, SensorReading *sr)
 {
@@ -155,11 +171,27 @@ static void machine_probe_encode(const struct app_w1_slot_reading *r, SensorRead
 	}
 }
 
+#if defined(CONFIG_APP_FLOOD_PROBE)
+/* Flood probe: the AIN2 voltage in mV. The wet/dry decision is a configurable
+ * alarm threshold (APP_ALARM_Q_FLOOD), evaluated on this value. */
+static void flood_probe_encode(const struct app_w1_slot_reading *r, SensorReading *sr)
+{
+	if (!isnan(r->flood)) {
+		sr->has_flood = true;
+		sr->flood = (int32_t)r->flood;
+	}
+}
+#endif
+
 static const struct app_w1_sensor_type m_types[] = {
 	{APP_W1_SLOT_DALLAS, 0x28, "dallas", app_ds18b20_scan, app_ds18b20_get_count, dallas_read,
 	 dallas_encode},
 	{APP_W1_SLOT_MACHINE_PROBE, 0x19, "machine-probe", app_machine_probe_scan,
 	 app_machine_probe_get_count, machine_probe_read, machine_probe_encode},
+#if defined(CONFIG_APP_FLOOD_PROBE)
+	{APP_W1_SLOT_FLOOD_PROBE, 0x19, "flood-probe", app_flood_probe_scan,
+	 app_flood_probe_get_count, flood_probe_read, flood_probe_encode},
+#endif
 };
 
 static const struct app_w1_sensor_type *type_desc(enum app_w1_slot_type type)
@@ -398,6 +430,7 @@ int app_w1_slots_read(int slot, struct app_w1_slot_reading *out)
 	out->accel_x = NAN;
 	out->accel_y = NAN;
 	out->accel_z = NAN;
+	out->flood = NAN;
 	out->is_tilt_alert = false;
 
 	/* Snapshot the binding under the lock; the (slow) driver read runs outside
@@ -432,6 +465,7 @@ int app_w1_slots_read(int slot, struct app_w1_slot_reading *out)
 						    .accel_x = NAN,
 						    .accel_y = NAN,
 						    .accel_z = NAN,
+						    .flood = NAN,
 						    .is_tilt_alert = false,
 						    .present = present};
 		return -ENODEV;
@@ -671,6 +705,8 @@ static int cmd_sensor_list(const struct shell *shell, size_t argc, char **argv)
 					 r.is_tilt_alert ? " / TILT" : "");
 			} else if (!isnan(r.temperature)) {
 				snprintf(reading, sizeof(reading), "%.2f C", (double)r.temperature);
+			} else if (!isnan(r.flood)) {
+				snprintf(reading, sizeof(reading), "%ld mV", (long)r.flood);
 			}
 		}
 

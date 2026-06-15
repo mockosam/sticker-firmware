@@ -365,9 +365,10 @@ message Telemetry {
 }
 
 // One ROM-bound 1-Wire slot's reading. type = enum app_w1_slot_type
-// (1=dallas temperature-only, 2=machine-probe full sensor cluster); quantities a
-// slot's type does not provide — or a sub-sensor that did not respond — are
-// absent. Fields 6-10 (lux/field/accel) are machine-probe only.
+// (1=dallas temperature-only, 2=machine-probe full sensor cluster, 3=flood-probe
+// resistive flood sensor); quantities a slot's type does not provide — or a sub-sensor
+// that did not respond — are absent. Fields 6-10 (lux/field/accel) are machine-probe
+// only; field 11 (flood) is flood-probe only.
 message SensorReading {
     uint32 slot              = 1;   // 1-based slot (matches sensorN config / `w1 list`)
     uint32 type              = 2;   // enum app_w1_slot_type
@@ -379,4 +380,5 @@ message SensorReading {
     optional sint32 accel_x        = 8;  // m/s^2 x100    (LIS2DH12)
     optional sint32 accel_y        = 9;  // m/s^2 x100
     optional sint32 accel_z        = 10; // m/s^2 x100
+    optional sint32 flood          = 11; // AIN2 voltage in mV (resistive flood sensor)
 }

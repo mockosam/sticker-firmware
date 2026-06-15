@@ -52,6 +52,7 @@ static const char *const m_quantity_names[APP_ALARM_Q_QUANTITY_COUNT] = {
 	[APP_ALARM_Q_TILT] = "tilt",
 	[APP_ALARM_Q_STATE] = "state",
 	[APP_ALARM_Q_COUNT] = "count",
+	[APP_ALARM_Q_FLOOD] = "flood",
 };
 
 const char *app_alarm_source_name(enum app_alarm_source source)
@@ -120,7 +121,8 @@ bool app_alarm_rule_valid(enum app_alarm_source source, enum app_alarm_quantity 
 		 * its type doesn't supply the quantity. */
 		return quantity == APP_ALARM_Q_TEMPERATURE || quantity == APP_ALARM_Q_HUMIDITY ||
 		       quantity == APP_ALARM_Q_ILLUMINANCE ||
-		       quantity == APP_ALARM_Q_MAGNETIC_FIELD || quantity == APP_ALARM_Q_TILT;
+		       quantity == APP_ALARM_Q_MAGNETIC_FIELD || quantity == APP_ALARM_Q_TILT ||
+		       quantity == APP_ALARM_Q_FLOOD;
 	case APP_ALARM_SRC_HALL_LEFT:
 	case APP_ALARM_SRC_HALL_RIGHT:
 	case APP_ALARM_SRC_INPUT_A:

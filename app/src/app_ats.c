@@ -254,7 +254,7 @@ static void print_available_sensors(const struct shell *shell)
 	shell_print(shell, "Available sensors:");
 	shell_print(shell, "  ---Float sensors---:");
 	shell_print(shell, "    voltage, temperature, humidity, illuminance, altitude, pressure");
-	shell_print(shell, "    sN-{temperature,humidity,illuminance,magnetic-field} (N=1..4)");
+	shell_print(shell, "    sN-{temperature,humidity,illuminance,magnetic-field,flood} (N=1..4)");
 	shell_print(shell, "  ---Integer sensors---:");
 	shell_print(shell, "    orientation");
 	shell_print(shell, "  ---Counter sensors---:");
@@ -349,6 +349,9 @@ static enum sval_kind resolve_sensor(const char *name, float *f, uint32_t *u, in
 			return SVAL_FLOAT;
 		} else if (strcmp(q, "magnetic-field") == 0) {
 			*f = s->magnetic_field;
+			return SVAL_FLOAT;
+		} else if (strcmp(q, "flood") == 0) {
+			*f = s->flood;
 			return SVAL_FLOAT;
 		} else if (strcmp(q, "tilt-alert") == 0) {
 			*bv = s->is_tilt_alert;
@@ -516,6 +519,9 @@ static int cmd_print_sample(const struct shell *shell, size_t argc, char **argv)
 			shell_print(shell, "  %-16s x=%.2f y=%.2f z=%.2f m/s^2",
 				    "accel:", (double)s->accel_x, (double)s->accel_y,
 				    (double)s->accel_z);
+		}
+		if (!isnan(s->flood)) {
+			shell_print(shell, "  %-16s %ld mV", "flood:", (long)s->flood);
 		}
 		shell_print(shell, "  %-16s %s",
 			    "tilt-alert:", s->is_tilt_alert ? "true" : "false");

@@ -19,6 +19,7 @@
 #include "app_sensor.h"
 #include "app_sht4x.h"
 #include "app_w1_slots.h"
+#include "app_flood_probe.h"
 
 /* Zephyr includes */
 #include <zephyr/device.h>
@@ -273,9 +274,38 @@ int app_sensor_init(void)
 		 * arming pass is needed here. */
 	}
 
+#if defined(CONFIG_APP_FLOOD_PROBE)
+	if (g_app_config.cap_w1_sensors) {
+		const struct device *fp_0 = DEVICE_DT_GET(DT_NODELABEL(flood_probe_0));
+
+		ret = device_init(fp_0);
+		if (ret) {
+			LOG_ERR_CALL_FAILED_CTX_INT("device_init", "flood_probe_0", ret);
+			res = res ? res : ret;
+		}
+
+		const struct device *fp_1 = DEVICE_DT_GET(DT_NODELABEL(flood_probe_1));
+
+		ret = device_init(fp_1);
+		if (ret) {
+			LOG_ERR_CALL_FAILED_CTX_INT("device_init", "flood_probe_1", ret);
+			res = res ? res : ret;
+		}
+
+		/* Flood probes share the DS28E17 family code (0x19) with the machine
+		 * probe; the scan only registers a 0x19 device whose ADS122C04 answers,
+		 * so the two transports partition the bus between them. */
+		ret = app_flood_probe_scan();
+		if (ret) {
+			LOG_ERR_CALL_FAILED_INT("app_flood_probe_scan", ret);
+			res = res ? res : ret;
+		}
+	}
+#endif
+
 	/* Bind discovered 1-Wire devices to logical slots by their persisted ROM
 	 * (sensorN_rom), so a slot keeps the same physical sensor across reboots /
-	 * rescans. Must run after both driver scans. */
+	 * rescans. Must run after all driver scans. */
 	if (g_app_config.cap_w1_sensors) {
 		int present = app_w1_slots_rebind();
 

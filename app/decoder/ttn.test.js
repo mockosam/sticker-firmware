@@ -270,6 +270,21 @@ test("fPort-2 telemetry decodes machine-probe sensor cluster (fields 6-10)", () 
   });
 });
 
+// Flood probe: a single reading carrying the AIN2 voltage in mV (slot=2 type=3
+// flood=1500 mV). flood is field 11 (sint32 zigzag); the wet/dry decision is a
+// configurable alarm threshold applied to this value.
+//   08 02 | 10 03 | 58 b8 17   (7 B body; zigzag(3000) = 1500)
+test("fPort-2 telemetry decodes flood-probe voltage (field 11)", () => {
+  const got = codec.decodeUplink({
+    bytes: hex("01da01070802100358b817"),
+    fPort: 2,
+  }).data;
+  assert.equal(got.w1_sensors.length, 1);
+  assert.deepEqual(got.w1_sensors[0], {
+    slot: 2, type: 3, type_name: "flood-probe", flood: 1500,
+  });
+});
+
 // Legacy flat 1-Wire fields (10-17, pre-SensorReading firmware) stay decodable
 // so one formatter serves a mixed fleet: ext1 temp (field 10, sint 21.5 °C) +
 // mp1 humidity (field 13, 54 %).

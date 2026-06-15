@@ -399,15 +399,16 @@ function _pbZigzag(n) {
 }
 
 // enum app_w1_slot_type → label (mirrors app_w1_slots.h).
-var _W1_SLOT_TYPES = { 1: "dallas", 2: "machine-probe" };
+var _W1_SLOT_TYPES = { 1: "dallas", 2: "machine-probe", 3: "flood-probe" };
 
 // One SensorReading submessage (Telemetry field 27): slot=1 (1-based, matches
 // sensorN config / `w1 list`), type=2,
 // temperature=3 (sint32 ×100), humidity=4 (uint ×2), flags=5 (bit0 tilt),
 // illuminance=6 (uint lux), magnetic_field=7 (sint µT → mT /1000), accel
-// x/y/z=8/9/10 (sint m/s² ×100). Machine-probe carries 6-10; a sub-sensor that
-// did not respond is absent. Absent quantities stay undefined. `bytes[start..end)`
-// is the submessage body.
+// x/y/z=8/9/10 (sint m/s² ×100), flood=11 (sint AIN2 voltage in mV).
+// Machine-probe carries 6-10, flood-probe carries 11; a sub-sensor that did not
+// respond is absent. Absent quantities stay undefined. `bytes[start..end)` is the
+// submessage body.
 function _decodeSensorReading(bytes, start, end) {
   var sr = {};
   var pos = start;
@@ -433,6 +434,7 @@ function _decodeSensorReading(bytes, start, end) {
       case 8: sr.accel_x = _pbZigzag(v.value) / 100; break;         // m/s²
       case 9: sr.accel_y = _pbZigzag(v.value) / 100; break;
       case 10: sr.accel_z = _pbZigzag(v.value) / 100; break;
+      case 11: sr.flood = _pbZigzag(v.value); break;               // AIN2 voltage (mV)
       default: break;
     }
   }
@@ -856,7 +858,7 @@ function decodeDownlink(input) {
 var _ALARM_SOURCES = ["onboard", "s1", "s2", "s3", "s4", "hall-left", "hall-right",
   "input-a", "input-b", "pir", "accel"];
 var _ALARM_QUANTITIES = ["temperature", "humidity", "pressure", "illuminance",
-  "magnetic-field", "tilt", "state", "count"];
+  "magnetic-field", "tilt", "state", "count", "flood"];
 var _ALARM_EDGES = ["activate", "deactivate"];
 var _ALARM_SIDES = ["none", "lo", "hi"];
 

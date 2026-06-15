@@ -61,6 +61,7 @@ enum app_alarm_quantity {
 	APP_ALARM_Q_TILT = 5,  /* digital (STATE) */
 	APP_ALARM_Q_STATE = 6, /* digital line of a discrete input (STATE) */
 	APP_ALARM_Q_COUNT = 7, /* counter rate (COUNT) */
+	APP_ALARM_Q_FLOOD = 8, /* flood probe AIN2 voltage in mV (THRESHOLD) */
 	APP_ALARM_Q_QUANTITY_COUNT
 };
 

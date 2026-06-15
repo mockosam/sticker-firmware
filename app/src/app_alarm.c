@@ -279,6 +279,9 @@ static bool read_threshold_value(uint8_t source, uint8_t quantity, float *out)
 		case APP_ALARM_Q_MAGNETIC_FIELD:
 			*out = r->magnetic_field;
 			return true;
+		case APP_ALARM_Q_FLOOD:
+			*out = r->flood;
+			return true;
 		default:
 			return false;
 		}
