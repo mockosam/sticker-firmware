@@ -277,8 +277,16 @@ static void app_cmd_handle_get_config(enum app_cmd_transport tp, const Command *
 	const bool allow_nfc_only = (tp == APP_CMD_TRANSPORT_NFC);
 
 	/* One tag buffer per section, each sized to the whole table so any single
-	 * section can hold all of a page's tags without overflow. */
-	uint32_t ids[4][ARRAY_SIZE(DUMP_FIELDS)];
+	 * section can hold all of a page's tags without overflow. Heap-allocated
+	 * (~480 B): kept on the stack it overflowed the handler thread (shell_rtt /
+	 * m_work_q / nfc_poll_tid) on top of the large Command/Response nanopb locals
+	 * and rebooted the device (#176). */
+	uint32_t (*ids)[ARRAY_SIZE(DUMP_FIELDS)] =
+		k_malloc(sizeof(uint32_t[4][ARRAY_SIZE(DUMP_FIELDS)]));
+	if (!ids) {
+		make_error(resp, Response_Error_Code_NOT_READY, "out of memory");
+		return;
+	}
 	size_t n[4] = {0};
 
 	/* Single greedy pass: pack fields into pages by DUMP_PAGE_BUDGET, collect
@@ -304,6 +312,7 @@ static void app_cmd_handle_get_config(enum app_cmd_transport tp, const Command *
 	if (page >= page_count) {
 		make_error(resp, Response_Error_Code_OUT_OF_RANGE, "page");
 		resp->body.error.fault_field = 1;
+		k_free(ids);
 		return;
 	}
 
@@ -332,6 +341,8 @@ static void app_cmd_handle_get_config(enum app_cmd_transport tp, const Command *
 		app_config_fill_alarms(&cd->alarms, ids[DUMP_SECTION_ALARMS],
 				       n[DUMP_SECTION_ALARMS]);
 	}
+
+	k_free(ids);
 }
 
 /* Encoded-size bound for a (section, tag) from DUMP_FIELDS. Returns false for a
